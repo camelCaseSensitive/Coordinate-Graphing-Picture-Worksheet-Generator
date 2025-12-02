@@ -9,16 +9,12 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
   </a>
 </p>
 
+### Example Worksheets
 <table>
   <tr>
     <td>
       <a href="YOUR-LINK-HERE">
-        <img src="./Bat1.png" alt="Bat" title="Bat" width="300">
-      </a>
-    </td>
-    <td>
-      <a href="YOUR-LINK-HERE">
-        <img src="./Bat2.png" alt="Bat" title="Bat" width="300">
+        <img src="./Bat.png" alt="Bat" title="Bat" width="300">
       </a>
     </td>
     <td>
@@ -108,38 +104,5 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
     </td>
   </tr>
 </table>
-
-
-
-### Example Worksheets
-<p align="center">
-  <a href="https://drive.google.com/file/d/1InVOTgQp7O7defDFB3DQMO3PAU-t2ph4/view?usp=sharing">
-    <img src="./Pikachu.png" alt="Coordinate Grid Image of Pikachu" title="Coordinate grid pikachu" width="600">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://drive.google.com/file/d/1InVOTgQp7O7defDFB3DQMO3PAU-t2ph4/view?usp=sharing">
-    <img src="./Penguin.png" alt="Coordinate Grid Image of a penguin" title="Coordinate grid pikachu" width="600">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://drive.google.com/file/d/1InVOTgQp7O7defDFB3DQMO3PAU-t2ph4/view?usp=sharing">
-    <img src="./Bat.png" alt="Coordinate Grid Image of a bat" title="Coordinate grid pikachu" width="600">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://drive.google.com/file/d/1InVOTgQp7O7defDFB3DQMO3PAU-t2ph4/view?usp=sharing">
-    <img src="./Reindeer.png" alt="Coordinate Grid Image of Reindeer" title="Coordinate grid pikachu" width="600">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://drive.google.com/file/d/1InVOTgQp7O7defDFB3DQMO3PAU-t2ph4/view?usp=sharing">
-    <img src="./Mario.png" alt="Coordinate Grid Image of Pikachu" title="Coordinate grid pikachu" width="600">
-  </a>
-</p>
 
 Free browser tool for generating worksheets for practicing plotting points that generate a picture.
