@@ -5,6 +5,6 @@ Free browser tool for generating worksheets for practicing plotting points that 
 
 <p align="center">
   <a href="https://camelcasesensitive.github.io/Stereogram-Generator-Online/">
-    <img src="./Example.jpg" alt="Stereogram Generator Software" title="Stereogram generator" width="600">
+    <img src="./pikaworksheet.png" alt="Coordinate Grid Image" title="Coordinate grid pikachu" width="600">
   </a>
 </p>
