@@ -10,7 +10,14 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
 </p>
 
 ### Example Worksheets
-<div style="display:flex; flex-wrap:wrap; gap:20px; justify-content:center; text-align:center;">
+<div style="
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  justify-content:center;
+  align-items:center;   /* <-- vertical centering */
+  text-align:center;
+">
 
   <a href="https://drive.google.com/file/d/1mHtQpPDDNft6ZIu6ZF3-qxE50Z-4LGY6/view?usp=sharing" style="text-align:center;">
     <img src="./Bat.png" alt="Bat" title="Bat" width="300">
@@ -75,7 +82,9 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
   <a href="https://drive.google.com/file/d/1-ESMHAcqsySDgMoIUdEYR1kTNDcbFm2m/view?usp=sharing" style="text-align:center;">
     <img src="./Squirrel.png" alt="Squirrel" title="Squirrel" width="300">
   </a>
+
 </div>
+
 
 
 Free browser tool for generating worksheets for practicing plotting points that generate a picture.
