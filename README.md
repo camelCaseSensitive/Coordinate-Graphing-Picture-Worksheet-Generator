@@ -1,4 +1,5 @@
 # Coordinate-Graphing-Picture-Worksheet-Generator
+This is a free browser tool for making plot the points to make an image worksheets.
 Drag and drop an image to trace a simple line drawing over it, edit the points, export worksheet as PDF!
 
 ### [Try It Out](https://camelcasesensitive.github.io/Coordinate-Graphing-Picture-Worksheet-Generator/)
@@ -9,7 +10,7 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
   </a>
 </p>
 
-### Example Worksheets
+### [Example Worksheets](https://drive.google.com/drive/folders/1AZFm-I5Mfv9xxWkKzpQXU_pVcWwzkEMJ?usp=drive_link)
 <div style="
   display:flex;
   flex-wrap:wrap;
@@ -84,7 +85,3 @@ Drag and drop an image to trace a simple line drawing over it, edit the points, 
   </a>
 
 </div>
-
-
-
-Free browser tool for generating worksheets for practicing plotting points that generate a picture.
