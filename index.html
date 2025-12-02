@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Plot & Connect — Phase 5 (Worksheet & PDF Export)</title>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<style>
+:root{
+ --bg:#0b0e12;--panel:#12161d;--ink:#e8eef9;--muted:#a9b4c7;
+ --accent:#58a6ff;--grid:#364151;--axes:#93c5fd;
+ --pt:#34d399;--hover:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;}
+header{padding:14px 16px 8px}
+h1{margin:0;font-size:18px}
+#controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px 12px;background:var(--panel);}
+.btn{border:1px solid #233044;background:#0f141c;color:var(--ink);padding:8px 12px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#2f425d}
+.btn.active{background:var(--accent);color:#000;}
+label{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--muted);}
+#stage{position:relative;flex:1;overflow:hidden;}
+canvas{display:block;width:100%;height:100%;cursor:crosshair;}
+#drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border:2px dashed #2b3647;border-radius:12px;margin:16px;color:var(--muted);pointer-events:auto;transition:background .2s,border-color .2s;}
+#drop.highlight{background:#0f1622;border-color:var(--accent);color:var(--ink)}
+#drop .inner{text-align:center;padding:24px}
+#file{display:none}
+.linkish{color:var(--accent);text-decoration:underline;cursor:pointer}
+#status{padding:8px 16px;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><h1>Plot & Connect — Coordinate Grid Worksheet Maker</h1></header>
+
+<div id="controls">
+  <button class="btn" id="gridBtn">Grid Edit</button>
+  <button class="btn" id="drawBtn">Draw</button>
+  <button class="btn" id="editBtn">Edit</button>
+  <label><input type="checkbox" id="showImage" checked>Show Image</label>
+  <button class="btn" id="worksheetBtn">Generate Worksheet</button>
+  <label><input type="checkbox" id="includeAnswer" checked>Include Answer Sheet</label>
+  <button class="btn" id="pdfBtn">Save PDF</button>
+  <span id="modeLabel" style="color:var(--muted);margin-left:auto;">[Grid Edit Mode]</span>
+  <button class="btn" id="pick">Upload Image</button>
+</div>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="drop" tabindex="0">
+    <div class="inner">
+      <h2>Drop, paste, or browse an image</h2>
+      <p>(PNG / JPG / WebP / Clipboard)</p>
+      <p><span class="linkish" id="browse">Browse</span> or press Ctrl / ⌘ + V to paste</p>
+    </div>
+    <input id="file" type="file" accept="image/*">
+  </div>
+</div>
+<div id="status">Waiting for image…</div>
+
+<script>
+(()=>{
+
+const {jsPDF} = window.jspdf;
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const stage=document.getElementById('stage'),drop=document.getElementById('drop');
+const fileInput=document.getElementById('file'),browse=document.getElementById('browse'),pick=document.getElementById('pick');
+const gridBtn=document.getElementById('gridBtn'),drawBtn=document.getElementById('drawBtn'),editBtn=document.getElementById('editBtn');
+const worksheetBtn=document.getElementById('worksheetBtn'),pdfBtn=document.getElementById('pdfBtn');
+const showImageBox=document.getElementById('showImage'),includeAnswer=document.getElementById('includeAnswer');
+const modeLabel=document.getElementById('modeLabel'),statusEl=document.getElementById('status');
+
+let mode='grid';function setMode(m){mode=m;[gridBtn,drawBtn,editBtn].forEach(b=>b.classList.remove('active'));if(m==='grid')gridBtn.classList.add('active');if(m==='draw')drawBtn.classList.add('active');if(m==='edit')editBtn.classList.add('active');modeLabel.textContent=`[${m[0].toUpperCase()+m.slice(1)} Mode]`;render();}
+gridBtn.onclick=()=>setMode('grid');drawBtn.onclick=()=>setMode('draw');editBtn.onclick=()=>setMode('edit');
+
+function resizeCanvas(){const dpr=Math.max(1,window.devicePixelRatio||1);const w=stage.clientWidth,h=stage.clientHeight;
+canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+window.addEventListener('resize',()=>{resizeCanvas();render();});
+
+// Image upload/paste omitted for brevity — same as previous phase
+browse.onclick=()=>fileInput.click();pick.onclick=()=>fileInput.click();
+['dragenter','dragover','dragleave','drop'].forEach(evn=>stage.addEventListener(evn,e=>{e.preventDefault();e.stopPropagation();}));
+['dragenter','dragover'].forEach(evn=>stage.addEventListener(evn,()=>drop.classList.add('highlight')));
+['dragleave','drop'].forEach(evn=>stage.addEventListener(evn,()=>drop.classList.remove('highlight')));
+stage.addEventListener('drop',e=>{const f=[...(e.dataTransfer.files||[])].find(f=>f.type.startsWith('image/'));if(f)loadImageFile(f);});
+window.addEventListener('paste',e=>{const it=e.clipboardData?.items;if(!it)return;for(const i of it){if(i.type.startsWith('image/')){loadImageFile(i.getAsFile());e.preventDefault();return;}}});
+
+let img=null;
+function loadImageFile(f){const u=URL.createObjectURL(f);const im=new Image();im.onload=()=>{img=im;URL.revokeObjectURL(u);drop.style.display='none';statusEl.textContent=`Image loaded (${im.naturalWidth}×${im.naturalHeight})`;render();};im.src=u;}
+
+// Grid logic
+const grid={originX:0,originY:0,step:48,init(){this.originX=canvas.clientWidth/2;this.originY=canvas.clientHeight/2;}};
+grid.init();
+let dragging=false,lastX=0,lastY=0;
+canvas.addEventListener('mousedown',e=>{if(mode!=='grid')return;dragging=true;lastX=e.offsetX;lastY=e.offsetY;});
+window.addEventListener('mouseup',()=>dragging=false);
+canvas.addEventListener('mousemove',e=>{if(mode!=='grid'||!dragging)return;grid.originX+=e.offsetX-lastX;grid.originY+=e.offsetY-lastY;lastX=e.offsetX;lastY=e.offsetY;render();});
+canvas.addEventListener('wheel',e=>{if(mode!=='grid')return;e.preventDefault();grid.step=Math.max(8,Math.min(200,grid.step*(1-e.deltaY*0.001)));render();},{passive:false});
+
+// Points
+let points=[];let hover=-1,drag=-1;
+function toCanvas(p){return{x:grid.originX+p.gx*grid.step,y:grid.originY-p.gy*grid.step};}
+function nearestGrid(x,y){const gx=Math.round((x-grid.originX)/grid.step),gy=Math.round((grid.originY-y)/grid.step);return{gx,gy};}
+function labelFor(i){if(i<26)return String.fromCharCode(65+i);const n=Math.floor(i/26);return String.fromCharCode(65+(i%26))+n;}
+function findHover(x,y){const tol=grid.step*0.3;for(let i=0;i<points.length;i++){const p=toCanvas(points[i]);if(Math.hypot(p.x-x,p.y-y)<tol)return i;}return -1;}
+canvas.addEventListener('mousedown',e=>{if(mode==='draw'){points.push(nearestGrid(e.offsetX,e.offsetY));render();}
+else if(mode==='edit'){hover=findHover(e.offsetX,e.offsetY);if(hover>=0)drag=hover;}});
+window.addEventListener('mouseup',()=>{if(drag>=0){drag=-1;render();}});
+canvas.addEventListener('mousemove',e=>{
+ if(mode==='edit'&&drag>=0){points[drag]=nearestGrid(e.offsetX,e.offsetY);render();return;}
+ hover=findHover(e.offsetX,e.offsetY);render(e.offsetX,e.offsetY);
+});
+
+// Render
+function clear(){ctx.fillStyle=getCSS('--bg','#0b0e12');ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);}
+function drawImage(){if(!img||!showImageBox.checked)return;const cw=canvas.clientWidth,ch=canvas.clientHeight,iw=img.naturalWidth,ih=img.naturalHeight;
+const s=Math.min(cw/iw,ch/ih),w=iw*s,h=ih*s,x=(cw-w)/2,y=(ch-h)/2;ctx.drawImage(img,x,y,w,h);}
+function drawGrid(){const cw=canvas.clientWidth,ch=canvas.clientHeight,ox=grid.originX,oy=grid.originY,s=grid.step;
+ctx.strokeStyle=getCSS('--grid','#364151');ctx.lineWidth=1;ctx.beginPath();
+for(let x=ox;x<=cw;x+=s){ctx.moveTo(x,0);ctx.lineTo(x,ch);}for(let x=ox-s;x>=0;x-=s){ctx.moveTo(x,0);ctx.lineTo(x,ch);}ctx.stroke();
+ctx.beginPath();for(let y=oy;y<=ch;y+=s){ctx.moveTo(0,y);ctx.lineTo(cw,y);}for(let y=oy-s;y>=0;y-=s){ctx.moveTo(0,y);ctx.lineTo(cw,y);}ctx.stroke();
+ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(cw,oy);ctx.moveTo(ox,0);ctx.lineTo(ox,ch);ctx.strokeStyle=getCSS('--axes','#93c5fd');ctx.lineWidth=1.5;ctx.stroke();}
+function drawPoints(mx,my){ctx.lineWidth=2;ctx.strokeStyle=getCSS('--pt','#34d399');ctx.beginPath();
+for(let i=0;i<points.length;i++){const p=toCanvas(points[i]);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}ctx.stroke();
+for(let i=0;i<points.length;i++){const p=toCanvas(points[i]);ctx.beginPath();ctx.arc(p.x,p.y,(i===hover)?6:4,0,Math.PI*2);
+ctx.fillStyle=(i===hover)?getCSS('--hover','#f59e0b'):getCSS('--pt','#34d399');ctx.fill();ctx.fillStyle='#fff';
+ctx.font=`${Math.max(10,grid.step*0.4)}px system-ui`;ctx.fillText(labelFor(i),p.x+6,p.y-4);}
+if(mode==='draw'&&mx!==undefined){const n=nearestGrid(mx,my),p=toCanvas(n);ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
+ctx.fillStyle='#58a6ff';ctx.fill();if(points.length>0){const l=toCanvas(points[points.length-1]);ctx.setLineDash([4,4]);
+ctx.strokeStyle='#58a6ff';ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);}}}
+function render(mx,my){resizeCanvas();clear();drawImage();drawGrid();drawPoints(mx,my);}
+function getCSS(v,f){const val=getComputedStyle(document.documentElement).getPropertyValue(v).trim();return val||f;}
+showImageBox.onchange=()=>render();
+render();
+
+// Worksheet PDF
+worksheetBtn.onclick=()=>generatePDF(false);
+pdfBtn.onclick=()=>generatePDF(true);
+
+function generatePDF(saveDirect){
+ if(points.length===0){alert('No points yet!');return;}
+ const pdf=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
+ makeWorksheetPage(pdf,false);
+ if(includeAnswer.checked){pdf.addPage();makeWorksheetPage(pdf,true);}
+ if(saveDirect)pdf.save('plot-and-connect.pdf');else window.open(pdf.output('bloburl'),'_blank');
+}
+
+function makeWorksheetPage(pdf, showAnswers) {
+  pdf.setFont('helvetica', '');
+  pdf.setFontSize(18);
+  pdf.text('Plot and Connect the Points', 72, 60);
+  pdf.setFontSize(12);
+  pdf.text('Name: _________________________', 72, 80);
+  pdf.text('Date: _________________', 350, 80);
+
+  const marginX = 72, marginY = 110;
+  const usableWidth = 468; // Letter width (612) - margins (72*2)
+  const usableHeight = 612 - marginY - 150; // keep bottom margin space
+
+  // Determine bounding box of points
+  let minGX = Infinity, maxGX = -Infinity, minGY = Infinity, maxGY = -Infinity;
+  for (const p of points) {
+    if (p.gx < minGX) minGX = p.gx;
+    if (p.gx > maxGX) maxGX = p.gx;
+    if (p.gy < minGY) minGY = p.gy;
+    if (p.gy > maxGY) maxGY = p.gy;
+  }
+
+  // Add 1-unit padding around drawing
+  minGX -= 1; maxGX += 1; minGY -= 1; maxGY += 1;
+
+  const gridWidth = maxGX - minGX;
+  const gridHeight = maxGY - minGY;
+
+  // Scale to fit page
+  const stepX = usableWidth / gridWidth;
+  const stepY = usableHeight / gridHeight;
+  const step = Math.min(stepX, stepY);
+
+  const gridSizeX = gridWidth * step;
+  const gridSizeY = gridHeight * step;
+
+  // Center grid horizontally
+  const gx = marginX + (usableWidth - gridSizeX) / 2;
+  const gy = marginY;
+
+  // Draw grid lines
+  pdf.setDrawColor(80);
+  pdf.setLineWidth(0.5);
+  for (let i = 0; i <= gridWidth; i++) {
+    const x = gx + i * step;
+    pdf.line(x, gy, x, gy + gridSizeY);
+  }
+  for (let i = 0; i <= gridHeight; i++) {
+    const y = gy + i * step;
+    pdf.line(gx, y, gx + gridSizeX, y);
+  }
+
+  // Axes at (0,0) if visible
+  if (minGX <= 0 && maxGX >= 0) {
+    const x0 = gx + (-minGX) * step;
+    pdf.setDrawColor(60, 130, 255);
+    pdf.setLineWidth(1);
+    pdf.line(x0, gy, x0, gy + gridSizeY);
+  }
+  if (minGY <= 0 && maxGY >= 0) {
+    const y0 = gy + (maxGY) * step;
+    pdf.setDrawColor(60, 130, 255);
+    pdf.setLineWidth(1);
+    pdf.line(gx, y0, gx + gridSizeX, y0);
+  }
+
+  // Label axes
+  pdf.setFontSize(9);
+  pdf.setTextColor(80);
+  for (let gxv = Math.ceil(minGX); gxv <= Math.floor(maxGX); gxv++) {
+    if (gxv === 0) continue;
+    const x = gx + (gxv - minGX) * step;
+    const y0 = gy + (maxGY) * step;
+    pdf.text(String(gxv), x + 2, y0 + 10);
+  }
+  for (let gyv = Math.ceil(minGY); gyv <= Math.floor(maxGY); gyv++) {
+    if (gyv === 0) continue;
+    const y = gy + (maxGY - gyv) * step;
+    const x0 = gx + (-minGX) * step;
+    pdf.text(String(gyv), x0 - 12, y + 3);
+  }
+
+  // Point list
+  pdf.setFontSize(12);
+  pdf.setTextColor(0);
+  pdf.text('Points:', 72, gy + gridSizeY + 30);
+  let col = 0, row = 0;
+  for (let i = 0; i < points.length; i++) {
+    const label = labelFor(i);
+    const p = points[i];
+    const line = `${label} ( ${p.gx}, ${p.gy} )`;
+    pdf.text(line, 72 + col * 200, gy + gridSizeY + 50 + row * 16);
+    row++;
+    if (row > 15) { row = 0; col++; }
+  }
+
+  // Answer sheet
+  if (showAnswers) {
+    pdf.setDrawColor(0, 200, 100);
+    pdf.setLineWidth(1.2);
+    const map = p => ({
+      x: gx + (p.gx - minGX) * step,
+      y: gy + (maxGY - p.gy) * step
+    });
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = map(points[i]), b = map(points[i + 1]);
+      pdf.line(a.x, a.y, b.x, b.y);
+    }
+    pdf.setFillColor(0, 200, 100);
+    for (const p of points) {
+      const q = map(p);
+      pdf.circle(q.x, q.y, 3, 'F');
+    }
+  }
+}
+
+
+
+})();
+</script>
+</body>
+</html>
